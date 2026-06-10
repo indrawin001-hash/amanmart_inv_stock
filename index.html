@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stock Opname System</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48" role="img">
+            <path d="M7 9h7l3.7 19.3a5 5 0 0 0 4.9 4.1h12.6a5 5 0 0 0 4.8-3.6l3.7-12.8H18" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M18 17h24M21 24h14" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+            <circle cx="23" cy="40" r="3.2" fill="currentColor"/>
+            <circle cx="38" cy="40" r="3.2" fill="currentColor"/>
+          </svg>
+        </div>
+        <h1>Stock Opname System</h1>
+      </div>
+      <div class="status-pill" id="storageStatus">Local mode</div>
+    </header>
+
+    <main>
+      <section class="overview" aria-label="Main modules">
+        <button class="module-card active" data-view="masterView" type="button">
+          <span class="module-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M5 6c0-1.7 3.1-3 7-3s7 1.3 7 3-3.1 3-7 3-7-1.3-7-3Zm0 0v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </span>
+          <strong>Master Data</strong>
+          <small>Import dan kelola data master produk</small>
+          <span class="module-action">Kelola Master Data</span>
+        </button>
+        <button class="module-card" data-view="countView" type="button">
+          <span class="module-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M3 7.5h6l2 2h10v8.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7.5Zm0 0V6a2 2 0 0 1 2-2h4l2 2h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          </span>
+          <strong>Stock Count</strong>
+          <small>Hitung stok berdasarkan lokasi</small>
+          <span class="module-action">Mulai Hitung Stok</span>
+        </button>
+        <button class="module-card" data-view="exportView" type="button">
+          <span class="module-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7V3Zm7 0v5h5M9.5 13h5M9.5 16h5M9.5 10h2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <strong>Export Data</strong>
+          <small>Export hasil perhitungan stok</small>
+          <span class="module-action">Export Data</span>
+        </button>
+      </section>
+
+      <section class="metrics" aria-label="Summary">
+        <div><span id="metricItems">0</span><small>Total item</small></div>
+        <div><span id="metricCounted">0</span><small>Item counted</small></div>
+        <div><span id="metricVariance">0</span><small>Variance qty</small></div>
+        <div><span id="metricValue">Rp 0</span><small>Variance value</small></div>
+      </section>
+
+      <section class="panel view active" id="masterView">
+        <div class="panel-head">
+          <div>
+            <h2>Master Data Item</h2>
+            <p>Maintain barcode, SKU, item name, category, location, system stock, and price data.</p>
+          </div>
+          <div class="actions">
+            <button class="btn secondary" id="downloadTemplateBtn" type="button">Download Excel Template</button>
+            <label class="btn secondary file-btn">
+              Import Excel
+              <input id="importMasterInput" type="file" accept=".xlsx,.xls,.csv" />
+            </label>
+            <button class="btn primary" id="addItemBtn" type="button">Add Item</button>
+          </div>
+        </div>
+
+        <form class="item-form" id="itemForm" autocomplete="off">
+          <input type="hidden" id="editingBarcode" />
+          <label>Barcode<input id="barcode" required placeholder="8991002100014" /></label>
+          <label>SKU<input id="sku" required placeholder="SKU-001" /></label>
+          <label>Item Name<input id="name" required placeholder="Rice Premium 5kg" /></label>
+          <label>Category<input id="category" placeholder="Groceries" /></label>
+          <label>Unit<input id="unit" placeholder="pcs" /></label>
+          <label>Location<input id="location" placeholder="Aisle A / Rack 01" /></label>
+          <label>System Stock<input id="systemStock" type="number" min="0" step="1" value="0" /></label>
+          <label>Price<input id="price" type="number" min="0" step="100" value="0" /></label>
+          <div class="form-actions">
+            <button class="btn primary" type="submit">Save Item</button>
+            <button class="btn ghost" id="cancelEditBtn" type="button">Clear</button>
+          </div>
+        </form>
+
+        <div class="table-tools">
+          <input class="search" id="masterSearch" placeholder="Search item, barcode, SKU, location..." />
+          <button class="btn secondary" id="exportMasterBtn" type="button">Export Master</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Barcode</th>
+                <th>SKU</th>
+                <th>Item Name</th>
+                <th>Category</th>
+                <th>Location</th>
+                <th class="num">System Stock</th>
+                <th class="num">Price</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="masterTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel view" id="countView">
+        <div class="panel-head">
+          <div>
+            <h2>Stock Count</h2>
+            <p>Scan barcode or type barcode and press Enter. Every scan adds quantity to the current count.</p>
+          </div>
+          <div class="actions">
+            <input class="session-input" id="sessionName" placeholder="Session name" />
+            <input class="session-input" id="countLocation" placeholder="Counting location" />
+            <button class="btn danger" id="resetCountBtn" type="button">Reset Count</button>
+          </div>
+        </div>
+
+        <div class="scan-lane">
+          <label class="scan-box">
+            <span>Barcode Scanner</span>
+            <input id="scanInput" placeholder="Scan barcode here..." autocomplete="off" />
+          </label>
+          <div class="scan-result" id="scanResult">Ready to scan</div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Barcode</th>
+                <th>SKU</th>
+                <th>Item Name</th>
+                <th>Location</th>
+                <th class="num">System</th>
+                <th class="num">Counted</th>
+                <th class="num">Variance</th>
+                <th class="num">Value</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="countTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel view" id="exportView">
+        <div class="panel-head">
+          <div>
+            <h2>Export Data</h2>
+            <p>Create Excel files for stock opname results, discrepancy reports, and blank templates.</p>
+          </div>
+          <div class="actions">
+            <button class="btn primary" id="exportResultsBtn" type="button">Export Count Result</button>
+            <button class="btn secondary" id="exportVarianceBtn" type="button">Export Variance Only</button>
+          </div>
+        </div>
+        <div class="export-grid">
+          <div class="export-box">
+            <strong>Stock Count Result</strong>
+            <span>Full counted item list with system stock, counted qty, variance, value, user, location, and timestamp.</span>
+          </div>
+          <div class="export-box">
+            <strong>Master Data Template</strong>
+            <span>User-friendly Excel template with sample rows and clear required columns for importing item database.</span>
+          </div>
+          <div class="export-box">
+            <strong>Variance Report</strong>
+            <span>Only items where counted quantity differs from system stock, ready for supervisor review.</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
